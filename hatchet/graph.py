@@ -12,6 +12,7 @@
 
 from .external.printtree import trees_as_text
 from .util.dot import trees_to_dot
+from .util.literal import trees_to_literal
 from .node import Node
 
 
@@ -67,7 +68,7 @@ class Graph:
 
         return result
 
-    def to_dot(self, roots=None, dataframe=None, metric='time', name='name',
+    def to_dot(self, roots=None, dataframe=None, metric='time (inc)', name='name',
                rank=0, threshold=0.0):
         """ Write the graph in the graphviz dot format:
             https://www.graphviz.org/doc/info/lang.html
@@ -77,6 +78,14 @@ class Graph:
 
         result = trees_to_dot(roots, dataframe, metric, name, rank, threshold)
 
+        return result
+
+    def to_literal(self, graph=None, dataframe=None):
+        if graph is None:
+            graph = self.graph
+
+        result = trees_to_literal(graph, dataframe)
+        
         return result
 
     def __str__(self):

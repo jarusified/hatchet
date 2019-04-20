@@ -17,6 +17,7 @@ from .caliper_reader import CaliperReader
 from .gprof_dot_reader import GprofDotReader
 from .node import Node
 from .graph import Graph
+import math
 
 lit_idx = 0
 squ_idx = 0
@@ -60,7 +61,7 @@ class GraphFrame:
         """
         global lit_idx
 
-        def parse_node_literal(child_dict, hparent, parent_callpath):
+        def parse_node_literal(child_dict, hparent, parent_callpath): 
             """ Create node_dict for one node and then call the function
                 recursively on all children.
             """
@@ -78,32 +79,39 @@ class GraphFrame:
                 for child in child_dict['children']:
                     parse_node_literal(child, hnode, list(node_callpath))
 
-        # start with creating a node_dict for the root
-        root_callpath = []
-        root_callpath.append(graph_dict['name'])
-        lit_idx = 0
-        graph_root = Node(lit_idx, tuple(root_callpath), None)
-
-        node_dicts = []
-        node_dicts.append(dict({'nid': lit_idx, 'node': graph_root, 'name': graph_dict['name']}, **graph_dict['metrics']))
-        lit_idx += 1
-
-        # call recursively on all children of root
-        if 'children' in graph_dict:
-            for child in graph_dict['children']:
-                parse_node_literal(child, graph_root, list(root_callpath))
-
+        roots = []
         self.exc_metrics = []
         self.inc_metrics = []
-        for key in graph_dict['metrics'].keys():
-            if '(inc)' in key:
-                self.inc_metrics.append(key)
-            else:
-                self.exc_metrics.append(key)
 
-        self.graph = Graph([graph_root])
+        for _dict in graph_dict:
+            # start with creating a node_dict for the root
+            root_callpath = []
+            root_callpath.append(_dict['name'])
+            lit_idx = 0
+            graph_root = Node(lit_idx, tuple(root_callpath), None)
+
+            node_dicts = []
+            node_dicts.append(dict({'nid': lit_idx, 'node': graph_root, 'name': _dict['name']}, **_dict['metrics']))
+            lit_idx += 1
+
+            # call recursively on all children of root
+            if 'children' in _dict:
+                for child in _dict['children']:
+                    parse_node_literal(child, graph_root, list(root_callpath))
+
+            roots.append(graph_root)
+
+        
+            for key in _dict['metrics'].keys():
+                if '(inc)' in key:
+                    self.inc_metrics.append(key)
+                else:
+                    self.exc_metrics.append(key)
+
+        self.graph = Graph(roots)
+        
         self.dataframe = pd.DataFrame(data=node_dicts)
-        self.dataframe.set_index(['node'], drop=False, inplace=True)
+        self.dataframe.set_index(['node'], drop=False, inplace=True)        
 
     def copy(self):
         """ Return a copy of the graphframe.
@@ -124,11 +132,15 @@ class GraphFrame:
         for root in self.graph.roots:
             for node in root.traverse(order='post'):
                 for metric in self.exc_metrics:
-                    val = self.dataframe.loc[node, metric]
+                    # val = self.dataframe.loc[node, metric]
+                    val = self.dataframe.loc[self.dataframe['name'] == node.callpath[-1]][metric].mean()
                     for child in node.children:
-                        val += self.dataframe.loc[child, metric]
+                        child_val = self.dataframe.loc[self.dataframe['name'] == child.callpath[-1]][metric].mean()
+                        if not math.isnan(child_val):
+                            val += child_val
                     inc_metric = metric + ' (inc)'
-                    self.dataframe.loc[node, inc_metric] = val
+                    if not math.isnan(val):
+                        self.dataframe.loc[self.dataframe['name'] == node.callpath[-1]][inc_metric] = val
 
     def drop_index_levels(self, function=numpy.mean):
         """ Drop all index levels but 'node'
@@ -172,8 +184,8 @@ class GraphFrame:
         # calculate number of unique nodes in the dataframe
         # and a set of filtered nodes
         if 'rank' in self.dataframe.index.names:
-            num_rows_df = len(self.dataframe.groupby(['node']))
-            filtered_nodes = self.dataframe.index.levels[0]
+            num_rows_df = self.dataframe.groupby(['node'])
+            filtered_nodes = num_rows_df.groups.keys()
         else:
             num_rows_df = len(self.dataframe.index)
             filtered_nodes = self.dataframe.index
@@ -238,11 +250,12 @@ class GraphFrame:
         # only do a squash if a filtering operation has been applied
         if num_nodes != num_rows_df:
             for root in self.graph.roots:
+                print(len(filtered_nodes))
                 if root in filtered_nodes:
                     clone = Node(squ_idx, (root.callpath[-1],), None)
                     new_roots.append(clone)
                     node_clone[root] = clone
-                    old_to_new_id[new_child.nid] = squ_idx
+                    old_to_new_id[root.nid] = squ_idx
                     squ_idx += 1
                     rewire_tree(root, clone, True, new_roots)
                 else:
