@@ -192,7 +192,7 @@ class HPCToolkitReader:
             # start graph construction at the root
             with self.timer.phase('graph construction'):
                 self.parse_xml_children(root, graph_root, list(node_callpath))
-
+        
         # create a dataframe for all the nodes in the graph
         self.df_nodes = pd.DataFrame.from_dict(data=self.node_dicts)
 
@@ -296,5 +296,4 @@ class HPCToolkitReader:
         """ Create a dict with all the node attributes.
         """
         node_dict = {'nid': nid, 'name': name, 'type': node_type, 'file': src_file, 'line': line, 'module': module, 'node': hnode}
-
         return node_dict
