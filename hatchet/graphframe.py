@@ -184,7 +184,8 @@ class GraphFrame:
         # calculate number of unique nodes in the dataframe
         # and a set of filtered nodes
         if 'rank' in self.dataframe.index.names:
-            num_rows_df = self.dataframe.groupby(['node'])
+            self.dataframe.index.names = ['node_index', 'rank_index']
+            num_rows_df = self.dataframe.groupby(['node_index'])
             filtered_nodes = num_rows_df.groups.keys()
         else:
             num_rows_df = len(self.dataframe.index)
@@ -250,7 +251,6 @@ class GraphFrame:
         # only do a squash if a filtering operation has been applied
         if num_nodes != num_rows_df:
             for root in self.graph.roots:
-                print(len(filtered_nodes))
                 if root in filtered_nodes:
                     clone = Node(squ_idx, (root.callpath[-1],), None)
                     new_roots.append(clone)
@@ -263,9 +263,9 @@ class GraphFrame:
 
         # create new dataframe that cloned nodes
         new_dataframe = self.dataframe.copy()
-        new_dataframe['node'] = new_dataframe['node'].apply(lambda x: node_clone[x])
+        new_dataframe['node_index'] = new_dataframe['node'].apply(lambda x: node_clone[x])
         new_dataframe['nid'] = new_dataframe['nid'].apply(lambda x: old_to_new_id[x])
-        new_dataframe.reset_index(level='node', inplace=True, drop=True)
+        new_dataframe.reset_index(level='node_index', inplace=True, drop=True)
 
         # create dict that stores aggregation function for each column
         agg_dict = {}
