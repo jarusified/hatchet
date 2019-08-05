@@ -128,6 +128,8 @@ class HPCToolkitReader:
         """
         metricdb_files = glob.glob(self.dir_name + '/*.metric-db')
         metricdb_files.sort()
+        metricdb_files = metricdb_files
+        print("Number of metric DB files", len(metricdb_files))
 
         # all the metric data per node and per process is read into the metrics
         # array below. The two additional columns are for storing the implicit
@@ -213,6 +215,7 @@ class HPCToolkitReader:
                 exc_metrics.append(column)
 
         graph = Graph(list_roots)
+        print(self.timer)
         return graph, dataframe, exc_metrics, inc_metrics
 
     def parse_xml_children(self, xml_node, hnode, callpath):
