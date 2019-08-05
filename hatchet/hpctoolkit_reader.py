@@ -77,6 +77,7 @@ class HPCToolkitReader:
         # process
         metricdb_files = glob.glob(self.dir_name + '/*.metric-db')
         self.num_pes = len(metricdb_files)
+        print(self.num_pes)
 
         # Read one metric-db file to extract the number of nodes in the CCT
         # and the number of metrics
@@ -144,6 +145,7 @@ class HPCToolkitReader:
         args = [(filename, self.num_nodes, self.num_metrics, shape)
                 for filename in metricdb_files]
         pool.map(read_metricdb_file, args)
+
 
         # once all files have been read, create a dataframe of metrics
         metric_names = [self.metric_names[key] for key in sorted(self.metric_names.keys())]
@@ -213,6 +215,7 @@ class HPCToolkitReader:
                 exc_metrics.append(column)
 
         graph = Graph(list_roots)
+        print(self.timer)
         return graph, dataframe, exc_metrics, inc_metrics
 
     def parse_xml_children(self, xml_node, hnode, callpath):

@@ -57,7 +57,7 @@ class GraphFrame:
             self.inc_metrics) = reader.create_graphframe()
 
     def from_literal(self, graph_dict):
-        """ Read graph from a dict literal.
+        """ Read graph from a dicts literal.
         """
         global lit_idx
 
@@ -79,36 +79,35 @@ class GraphFrame:
                 for child in child_dict['children']:
                     parse_node_literal(child, hnode, list(node_callpath))
 
-        roots = []
+        list_roots = []
+        node_dicts = []
         self.exc_metrics = []
         self.inc_metrics = []
 
-        for _dict in graph_dict:
+        for i in range(len(graph_dict)):
             # start with creating a node_dict for the root
             root_callpath = []
-            root_callpath.append(_dict['name'])
+            root_callpath.append(graph_dict[i]['name'])
             lit_idx = 0
             graph_root = Node(lit_idx, tuple(root_callpath), None)
 
-            node_dicts = []
-            node_dicts.append(dict({'nid': lit_idx, 'node': graph_root, 'name': _dict['name']}, **_dict['metrics']))
+            node_dicts.append(dict({'nid': lit_idx, 'node': graph_root, 'name': graph_dict[i]['name']}, **graph_dict[i]['metrics']))
             lit_idx += 1
 
             # call recursively on all children of root
-            if 'children' in _dict:
-                for child in _dict['children']:
+            if 'children' in graph_dict[i]:
+                for child in graph_dict[i]['children']:
                     parse_node_literal(child, graph_root, list(root_callpath))
 
-            roots.append(graph_root)
+            list_roots.append(graph_root)
 
-        
-            for key in _dict['metrics'].keys():
+            for key in graph_dict[i]['metrics'].keys():
                 if '(inc)' in key:
                     self.inc_metrics.append(key)
                 else:
                     self.exc_metrics.append(key)
 
-        self.graph = Graph(roots)
+        self.graph = Graph(list_roots)
         
         self.dataframe = pd.DataFrame(data=node_dicts)
         self.dataframe.set_index(['node'], drop=False, inplace=True)        
@@ -183,8 +182,9 @@ class GraphFrame:
 
         # calculate number of unique nodes in the dataframe
         # and a set of filtered nodes
-        if 'rank' in self.dataframe.index.names:
-            num_rows_df = self.dataframe.groupby(['node'])
+        self.dataframe.index.names = ['node_index', 'rank_index']
+        if 'rank_index' in self.dataframe.index.names:
+            num_rows_df = self.dataframe.groupby(['node_index'])
             filtered_nodes = num_rows_df.groups.keys()
         else:
             num_rows_df = len(self.dataframe.index)
@@ -250,7 +250,6 @@ class GraphFrame:
         # only do a squash if a filtering operation has been applied
         if num_nodes != num_rows_df:
             for root in self.graph.roots:
-                print(len(filtered_nodes))
                 if root in filtered_nodes:
                     clone = Node(squ_idx, (root.callpath[-1],), None)
                     new_roots.append(clone)
@@ -264,8 +263,8 @@ class GraphFrame:
         # create new dataframe that cloned nodes
         new_dataframe = self.dataframe.copy()
         new_dataframe['node'] = new_dataframe['node'].apply(lambda x: node_clone[x])
-        new_dataframe['nid'] = new_dataframe['nid'].apply(lambda x: old_to_new_id[x])
-        new_dataframe.reset_index(level='node', inplace=True, drop=True)
+        # new_dataframe['nid'] = new_dataframe['nid'].apply(lambda x: old_to_new_id[x])
+        # new_dataframe.reset_index(level='node', inplace=True, drop=True)
 
         # create dict that stores aggregation function for each column
         agg_dict = {}
@@ -276,7 +275,7 @@ class GraphFrame:
                 agg_dict[col] = lambda x: x.iloc[0]
 
         # perform a groupby to merge nodes with the same callpath
-        index_names = self.dataframe.index.names
+        index_names = ['node', 'rank']
         agg_df = new_dataframe.groupby(index_names).agg(agg_dict)
 
         new_graphframe = GraphFrame(Graph(new_roots), agg_df)

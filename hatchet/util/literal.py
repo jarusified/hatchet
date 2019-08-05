@@ -28,19 +28,15 @@ def trees_to_literal(graph, dataframe):
     mapper = {}
 
     def add_nodes_and_children(hnode):
-        node_name = dataframe.loc[dataframe['node'] == hnode]['name'][0]
+        node_df = dataframe.loc[dataframe['name'] == hnode.callpath[-1]]
+        node_name = node_df['name'].unique()[0]
         children = []
-        # print(node_name)
-        # if(node_name in mapper):
-        #     mapper[node_name] = 0
-        # else:
-        #     mapper[node_name] = 1
         
-        # print(mapper[node_name])
-
-        # There is some bug somewhere. 
         for child in hnode.children:
-            child_name = dataframe.loc[dataframe['node'] == child]['name'][0]
+            print(type(child), child.callpath[-1])
+            child_df = dataframe.loc[dataframe['name'] == child.callpath[-1]]
+            print(child_df['name'].unique())
+            child_name = child_df['name'].unique()[0]
             if child_name in adj_idx_map and node_name in adj_idx_map:
                 source_idx = adj_idx_map[node_name]
                 target_idx = adj_idx_map[child_name]
@@ -52,7 +48,12 @@ def trees_to_literal(graph, dataframe):
         return {
             "name": node_name,
             "children": children,
-            "metrics": {}
+            "metrics": {
+                "nid": node_df['nid'].tolist(),
+                "time (inc)": node_df['time (inc)'].mean(),
+                "time": node_df['time'].mean(),
+                "rank": node_df['rank'].tolist(),
+            }
         }
 
     for root in graph.roots:
